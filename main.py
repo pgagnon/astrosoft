@@ -66,9 +66,10 @@ def migrate_model(source: str, destination: str, mode: str, model: str):
             Dest_Session = sessionmaker(bind=dst_engine)
             dst_session = Dest_Session()
 
-            for obj in chunks(objs, 100):
-                dst_session.merge(obj)
-                dst_session.commit()
+            for lst in chunks(objs, 100):
+                for obj in lst:
+                    dst_session.merge(obj)
+                    dst_session.commit()
 
             print(f"Done merging {model_} ({len(objs)} objects)")
         elif mode == "offline":
