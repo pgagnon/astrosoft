@@ -1,6 +1,12 @@
 import click
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
 @click.command()
 @click.option("--source", help="Connection string to source database", required=True)
 @click.option(
@@ -35,7 +41,13 @@ def migrate_model(source: str, destination: str, mode: str, model: str):
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy import create_engine
 
-    Source_Session = sessionmaker(bind=create_engine(source))
+    src_engine = create_engine(source, echo=True)
+
+    with src_engine.begin() as tx:
+        res = tx.execute("SELECT 1").fetchone()
+        print(f"'src_engine SELECT 1': {res}")
+
+    Source_Session = sessionmaker(bind=src_engine)
 
     for model_ in model:
         print(f"Querying {model_}")
@@ -45,10 +57,16 @@ def migrate_model(source: str, destination: str, mode: str, model: str):
 
         if mode == "live":
             print(f"Merging {model_}")
-            Dest_Session = sessionmaker(bind=create_engine(destination))
+            dst_engine = create_engine(destination, echo=True)
+
+            with dst_engine.begin() as tx:
+                res = tx.execute("SELECT 1").fetchone()
+                print(f"'src_engine SELECT 1': {res}")
+
+            Dest_Session = sessionmaker(bind=dst_engine)
             dst_session = Dest_Session()
 
-            for obj in objs:
+            for obj in chunks(objs, 100):
                 dst_session.merge(obj)
                 dst_session.commit()
 
